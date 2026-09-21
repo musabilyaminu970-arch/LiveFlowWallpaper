@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Live Flow</string>
+    <string name="wallpaper_name">Live Flow Wallpaper</string>
+    <string name="wallpaper_description">A smooth, lightweight animated flow wallpaper.</string>
+    <string name="subtitle">Animated flowing light, designed to stay smooth and lightweight.</string>
+    <string name="set_wallpaper">Set live wallpaper</string>
+    <string name="open_picker">Open wallpaper picker</string>
+</resources>
