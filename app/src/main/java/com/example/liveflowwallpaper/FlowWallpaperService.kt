@@ -1,27 +1,59 @@
 package com.example.liveflowwallpaper
 
-import android.graphics.*
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Matrix
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.RectF
+import android.net.Uri
 import android.service.wallpaper.WallpaperService
 import android.view.SurfaceHolder
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.random.Random
 
 class FlowWallpaperService : WallpaperService() {
 
-    override fun onCreateEngine(): Engine = FlowEngine()
+    override fun onCreateEngine(): Engine {
+        return FlowEngine()
+    }
 
     private inner class FlowEngine : Engine() {
-        private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            isDither = true
-            strokeCap = Paint.Cap.ROUND
-        }
 
         private var running = false
         private var thread: Thread? = null
 
+        private var bitmap: Bitmap? = null
+
+        private val paint =
+            Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+
+        private val random =
+            Random(System.currentTimeMillis())
+
+        private data class PolygonPiece(
+            val x: Float,
+            val y: Float,
+            val radius: Float,
+            val sides: Int,
+            val rotation: Float,
+            val phase: Float,
+            val speed: Float,
+            val distance: Float
+        )
+
+        private var pieces =
+            emptyList<PolygonPiece>()
+
         override fun onVisibilityChanged(visible: Boolean) {
+
             running = visible
+
             if (visible) {
+                loadPhoto()
                 startDrawing()
             } else {
                 stopDrawing()
@@ -34,223 +66,615 @@ class FlowWallpaperService : WallpaperService() {
             width: Int,
             height: Int
         ) {
-            super.onSurfaceChanged(holder, format, width, height)
+            super.onSurfaceChanged(
+                holder,
+                format,
+                width,
+                height
+            )
+
+            loadPhoto()
+
             if (running) {
                 startDrawing()
             }
         }
 
-        override fun onSurfaceDestroyed(holder: SurfaceHolder) {
+        override fun onSurfaceDestroyed(
+            holder: SurfaceHolder
+        ) {
             stopDrawing()
             super.onSurfaceDestroyed(holder)
         }
 
+        private fun loadPhoto() {
+
+            val saved =
+                getSharedPreferences(
+                    "LiveFlow",
+                    MODE_PRIVATE
+                )
+                    .getString("photo_uri", null)
+
+            if (saved == null) {
+                bitmap = null
+                return
+            }
+
+            try {
+
+                val uri = Uri.parse(saved)
+
+                val stream =
+                    contentResolver.openInputStream(uri)
+
+                val original =
+                    BitmapFactory.decodeStream(stream)
+
+                stream?.close()
+
+                bitmap = original
+
+            } catch (_: Exception) {
+
+                bitmap = null
+            }
+        }
+
         private fun startDrawing() {
-            if (thread?.isAlive == true) return
+
+            if (thread?.isAlive == true) {
+                return
+            }
 
             running = true
 
             thread = Thread {
+
                 var time = 0f
 
                 while (running) {
-                    val frameStart = System.nanoTime()
+
+                    val frameStart =
+                        System.nanoTime()
 
                     drawFrame(time)
+
                     time += 0.018f
 
-                    val elapsedMs =
-                        (System.nanoTime() - frameStart) / 1_000_000L
+                    val elapsed =
+                        (
+                            System.nanoTime() -
+                                frameStart
+                            ) / 1_000_000L
 
-                    val sleepMs =
-                        (16L - elapsedMs).coerceAtLeast(1L)
+                    val sleep =
+                        (16L - elapsed)
+                            .coerceAtLeast(1L)
 
                     try {
-                        Thread.sleep(sleepMs)
+                        Thread.sleep(sleep)
                     } catch (_: InterruptedException) {
                     }
                 }
-            }.also { it.start() }
+            }
+
+            thread?.start()
         }
 
         private fun stopDrawing() {
+
             running = false
+
             thread?.interrupt()
+
             thread = null
         }
 
-        private fun drawFrame(t: Float) {
-            val holder = surfaceHolder
+        private fun createPieces(
+            width: Float,
+            height: Float
+        ) {
 
-            val canvas = try {
-                holder.lockCanvas()
-            } catch (_: Exception) {
-                null
-            } ?: return
+            val list =
+                ArrayList<PolygonPiece>()
 
-            try {
-                val w = canvas.width.toFloat()
-                val h = canvas.height.toFloat()
-                val minDim = minOf(w, h)
+            val minDimension =
+                minOf(width, height)
 
-                // Animated background
-                val bg = LinearGradient(
-                    0f, 0f, w, h,
-                    intArrayOf(
-                        Color.rgb(7, 11, 24),
-                        Color.rgb(13, 22, 48),
-                        Color.rgb(5, 10, 22)
-                    ),
-                    null,
-                    Shader.TileMode.CLAMP
-                )
+            val columns = 4
+            val rows = 6
 
-                canvas.drawRect(
-                    0f,
-                    0f,
-                    w,
-                    h,
-                    Paint().apply {
-                        shader = bg
-                    }
-                )
+            val cellWidth =
+                width / columns
 
-                // Moving luminous orbs
-                drawOrb(
-                    canvas,
-                    w * 0.23f + cos(t * 0.52f) * w * 0.16f,
-                    h * 0.30f + sin(t * 0.67f) * h * 0.13f,
-                    minDim * 0.34f,
-                    Color.argb(90, 40, 145, 255)
-                )
+            val cellHeight =
+                height / rows
 
-                drawOrb(
-                    canvas,
-                    w * 0.76f + sin(t * 0.43f) * w * 0.13f,
-                    h * 0.58f + cos(t * 0.58f) * h * 0.16f,
-                    minDim * 0.38f,
-                    Color.argb(70, 110, 70, 255)
-                )
+            for (row in 0 until rows) {
 
-                // Flowing ribbons
-                paint.style = Paint.Style.STROKE
-                paint.strokeWidth = minDim * 0.010f
+                for (column in 0 until columns) {
 
-                paint.shader = LinearGradient(
-                    0f,
-                    0f,
-                    w,
-                    h,
-                    intArrayOf(
-                        Color.argb(20, 80, 190, 255),
-                        Color.argb(185, 80, 190, 255),
-                        Color.argb(80, 175, 110, 255),
-                        Color.argb(15, 80, 190, 255)
-                    ),
-                    null,
-                    Shader.TileMode.CLAMP
-                )
+                    val centerX =
+                        column * cellWidth +
+                            cellWidth / 2f
 
-                for (ribbon in 0..3) {
-                    val path = Path()
-                    val baseY = h * (0.28f + ribbon * 0.16f)
+                    val centerY =
+                        row * cellHeight +
+                            cellHeight / 2f
 
-                    path.moveTo(-w * 0.05f, baseY)
-
-                    var x = -w * 0.05f
-
-                    while (x <= w * 1.05f) {
-                        val nx = x / w
-
-                        val y = baseY +
-                            sin(
-                                nx * 6.4f +
-                                    t * (0.75f + ribbon * 0.08f)
-                            ) * h * 0.045f +
-                            cos(
-                                nx * 3.1f -
-                                    t * 0.45f
-                            ) * h * 0.025f
-
-                        path.lineTo(x, y)
-
-                        x += w / 80f
-                    }
-
-                    canvas.drawPath(path, paint)
-                }
-
-                // Star-like particles
-                paint.shader = null
-                paint.style = Paint.Style.FILL
-
-                for (i in 0 until 28) {
-                    val px =
-                        ((i * 83.0 +
-                            t * (7 + i % 4) * 4) %
-                            (w + 40)) - 20
-
-                    val py =
-                        ((i * 137.0 +
-                            sin(t * 0.3f + i) * 18) %
-                            (h + 40)) - 20
+                    val sides =
+                        random.nextInt(4, 8)
 
                     val radius =
-                        minDim *
-                            (0.0015f + (i % 3) * 0.001f)
+                        minOf(
+                            cellWidth,
+                            cellHeight
+                        ) * 0.48f
 
-                    paint.color =
-                        Color.argb(
-                            90 + (i % 4) * 30,
-                            180,
-                            215,
-                            255
+                    val angle =
+                        random.nextFloat() * 360f
+
+                    val phase =
+                        random.nextFloat() *
+                            6.28f
+
+                    val speed =
+                        0.5f +
+                            random.nextFloat() * 0.8f
+
+                    val distance =
+                        minDimension *
+                            (0.15f +
+                                random.nextFloat() * 0.55f)
+
+                    list.add(
+                        PolygonPiece(
+                            centerX,
+                            centerY,
+                            radius,
+                            sides,
+                            angle,
+                            phase,
+                            speed,
+                            distance
                         )
+                    )
+                }
+            }
 
-                    canvas.drawCircle(
-                        px.toFloat(),
-                        py.toFloat(),
-                        radius,
-                        paint
+            pieces = list
+        }
+
+        private fun drawFrame(time: Float) {
+
+            val holder =
+                surfaceHolder
+
+            val canvas =
+                try {
+                    holder.lockCanvas()
+                } catch (_: Exception) {
+                    null
+                } ?: return
+
+            try {
+
+                val width =
+                    canvas.width.toFloat()
+
+                val height =
+                    canvas.height.toFloat()
+
+                val image =
+                    bitmap
+
+                if (image == null) {
+
+                    canvas.drawColor(
+                        Color.rgb(
+                            7,
+                            11,
+                            24
+                        )
+                    )
+
+                    drawWaitingMessage(
+                        canvas,
+                        width,
+                        height
+                    )
+
+                    return
+                }
+
+                if (
+                    pieces.size != 24
+                ) {
+                    createPieces(
+                        width,
+                        height
                     )
                 }
 
+                /*
+                 * One complete animation cycle.
+                 *
+                 * 0.0 -> pieces scattered
+                 * 0.5 -> pieces return
+                 * 1.0 -> full picture revealed
+                 */
+
+                val cycle =
+                    (time / 7.0f) % 1.0f
+
+                val reveal =
+                    smoothStep(
+                        cycle
+                    )
+
+                drawPolygonPhoto(
+                    canvas,
+                    image,
+                    width,
+                    height,
+                    reveal,
+                    time
+                )
+
             } finally {
+
                 try {
-                    holder.unlockCanvasAndPost(canvas)
+                    holder.unlockCanvasAndPost(
+                        canvas
+                    )
                 } catch (_: Exception) {
                 }
             }
         }
 
-        private fun drawOrb(
+        private fun drawPolygonPhoto(
             canvas: Canvas,
+            image: Bitmap,
+            width: Float,
+            height: Float,
+            reveal: Float,
+            time: Float
+        ) {
+
+            /*
+             * First draw a very dark background.
+             */
+            canvas.drawColor(
+                Color.rgb(
+                    3,
+                    5,
+                    12
+                )
+            )
+
+            /*
+             * Draw each polygon as a moving
+             * window containing its correct
+             * section of the photograph.
+             */
+
+            for (piece in pieces) {
+
+                val wave =
+                    sin(
+                        time * piece.speed +
+                            piece.phase
+                    ).toFloat()
+
+                /*
+                 * At the beginning, pieces are
+                 * pushed away from their final
+                 * positions.
+                 *
+                 * As reveal approaches 1,
+                 * they return to the correct
+                 * position.
+                 */
+                val scatter =
+                    (1f - reveal) *
+                        piece.distance
+
+                val direction =
+                    piece.rotation *
+                        0.017453292f
+
+                val dx =
+                    cos(direction) *
+                        scatter
+
+                val dy =
+                    sin(direction) *
+                        scatter
+
+                val centerX =
+                    piece.x + dx
+
+                val centerY =
+                    piece.y + dy
+
+                /*
+                 * Zoom effect.
+                 */
+                val zoom =
+                    0.55f +
+                        reveal * 0.45f +
+                        wave * 0.08f
+
+                /*
+                 * Rotation effect.
+                 */
+                val rotation =
+                    piece.rotation +
+                        wave * 35f +
+                        (1f - reveal) * 180f
+
+                val path =
+                    createPolygonPath(
+                        centerX,
+                        centerY,
+                        piece.radius * zoom,
+                        piece.sides,
+                        rotation
+                    )
+
+                canvas.save()
+
+                /*
+                 * The polygon becomes a mask.
+                 */
+                canvas.clipPath(path)
+
+                /*
+                 * Calculate how the original
+                 * photograph fills the screen.
+                 */
+                val matrix =
+                    createImageMatrix(
+                        image,
+                        width,
+                        height
+                    )
+
+                /*
+                 * Move the image together with
+                 * its polygon piece.
+                 *
+                 * This is what makes each polygon
+                 * contain the correct part of the
+                 * original photograph.
+                 */
+                matrix.postTranslate(
+                    centerX - piece.x,
+                    centerY - piece.y
+                )
+
+                matrix.postScale(
+                    zoom,
+                    zoom,
+                    centerX,
+                    centerY
+                )
+
+                paint.alpha = 255
+
+                canvas.drawBitmap(
+                    image,
+                    matrix,
+                    paint
+                )
+
+                canvas.restore()
+
+                /*
+                 * Soft outline around every piece.
+                 */
+                paint.style =
+                    Paint.Style.STROKE
+
+                paint.strokeWidth = 2.5f
+
+                paint.color =
+                    Color.argb(
+                        100,
+                        255,
+                        255,
+                        255
+                    )
+
+                canvas.drawPath(
+                    path,
+                    paint
+                )
+
+                paint.style =
+                    Paint.Style.FILL
+            }
+
+            /*
+             * During the final part of the cycle,
+             * gently reveal the entire photograph.
+             *
+             * This creates the "everything becomes
+             * one full picture" moment.
+             */
+            if (reveal > 0.82f) {
+
+                val alpha =
+                    (
+                        (reveal - 0.82f) /
+                            0.18f *
+                            255f
+                        )
+                        .toInt()
+                        .coerceIn(
+                            0,
+                            255
+                        )
+
+                paint.alpha = alpha
+
+                val matrix =
+                    createImageMatrix(
+                        image,
+                        width,
+                        height
+                    )
+
+                canvas.drawBitmap(
+                    image,
+                    matrix,
+                    paint
+                )
+
+                paint.alpha = 255
+            }
+        }
+
+        private fun createPolygonPath(
             cx: Float,
             cy: Float,
             radius: Float,
-            color: Int
-        ) {
-            val p = Paint(Paint.ANTI_ALIAS_FLAG)
+            sides: Int,
+            rotation: Float
+        ): Path {
 
-            p.shader = RadialGradient(
-                cx,
-                cy,
-                radius,
-                intArrayOf(
-                    color,
-                    Color.argb(
-                        20,
-                        Color.red(color),
-                        Color.green(color),
-                        Color.blue(color)
-                    ),
-                    Color.TRANSPARENT
-                ),
-                floatArrayOf(0f, 0.55f, 1f),
-                Shader.TileMode.CLAMP
+            val path =
+                Path()
+
+            val rotationRadians =
+                Math.toRadians(
+                    rotation.toDouble()
+                )
+
+            for (i in 0 until sides) {
+
+                val angle =
+                    rotationRadians +
+                        i.toDouble() *
+                        Math.PI * 2.0 /
+                        sides.toDouble()
+
+                val x =
+                    cx +
+                        cos(angle)
+                            .toFloat() *
+                        radius
+
+                val y =
+                    cy +
+                        sin(angle)
+                            .toFloat() *
+                        radius
+
+                if (i == 0) {
+                    path.moveTo(
+                        x,
+                        y
+                    )
+                } else {
+                    path.lineTo(
+                        x,
+                        y
+                    )
+                }
+            }
+
+            path.close()
+
+            return path
+        }
+
+        private fun createImageMatrix(
+            bitmap: Bitmap,
+            width: Float,
+            height: Float
+        ): Matrix {
+
+            val matrix =
+                Matrix()
+
+            val bitmapWidth =
+                bitmap.width.toFloat()
+
+            val bitmapHeight =
+                bitmap.height.toFloat()
+
+            /*
+             * Center-crop the photograph so
+             * it completely covers the screen.
+             */
+            val scale =
+                maxOf(
+                    width / bitmapWidth,
+                    height / bitmapHeight
+                )
+
+            val scaledWidth =
+                bitmapWidth * scale
+
+            val scaledHeight =
+                bitmapHeight * scale
+
+            val left =
+                (width - scaledWidth) / 2f
+
+            val top =
+                (height - scaledHeight) / 2f
+
+            matrix.setScale(
+                scale,
+                scale
             )
 
-            canvas.drawCircle(cx, cy, radius, p)
+            matrix.postTranslate(
+                left,
+                top
+            )
+
+            return matrix
+        }
+
+        private fun smoothStep(
+            value: Float
+        ): Float {
+
+            val x =
+                value.coerceIn(
+                    0f,
+                    1f
+                )
+
+            return x * x *
+                (3f - 2f * x)
+        }
+
+        private fun drawWaitingMessage(
+            canvas: Canvas,
+            width: Float,
+            height: Float
+        ) {
+
+            paint.color =
+                Color.WHITE
+
+            paint.textSize =
+                42f
+
+            paint.textAlign =
+                Paint.Align.CENTER
+
+            canvas.drawText(
+                "Choose a photo",
+                width / 2f,
+                height / 2f,
+                paint
+            )
         }
     }
 }
