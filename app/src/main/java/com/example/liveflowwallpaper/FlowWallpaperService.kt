@@ -7,7 +7,6 @@ import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.RectF
 import android.net.Uri
 import android.service.wallpaper.WallpaperService
 import android.view.SurfaceHolder
@@ -25,7 +24,6 @@ class FlowWallpaperService : WallpaperService() {
 
         private var running = false
         private var thread: Thread? = null
-
         private var bitmap: Bitmap? = null
 
         private val paint =
@@ -45,11 +43,9 @@ class FlowWallpaperService : WallpaperService() {
             val distance: Float
         )
 
-        private var pieces =
-            emptyList<PolygonPiece>()
+        private var pieces = emptyList<PolygonPiece>()
 
         override fun onVisibilityChanged(visible: Boolean) {
-
             running = visible
 
             if (visible) {
@@ -66,12 +62,7 @@ class FlowWallpaperService : WallpaperService() {
             width: Int,
             height: Int
         ) {
-            super.onSurfaceChanged(
-                holder,
-                format,
-                width,
-                height
-            )
+            super.onSurfaceChanged(holder, format, width, height)
 
             loadPhoto()
 
@@ -80,21 +71,17 @@ class FlowWallpaperService : WallpaperService() {
             }
         }
 
-        override fun onSurfaceDestroyed(
-            holder: SurfaceHolder
-        ) {
+        override fun onSurfaceDestroyed(holder: SurfaceHolder) {
             stopDrawing()
             super.onSurfaceDestroyed(holder)
         }
 
         private fun loadPhoto() {
-
             val saved =
                 getSharedPreferences(
                     "LiveFlow",
                     MODE_PRIVATE
-                )
-                    .getString("photo_uri", null)
+                ).getString("photo_uri", null)
 
             if (saved == null) {
                 bitmap = null
@@ -102,7 +89,6 @@ class FlowWallpaperService : WallpaperService() {
             }
 
             try {
-
                 val uri = Uri.parse(saved)
 
                 val stream =
@@ -114,15 +100,12 @@ class FlowWallpaperService : WallpaperService() {
                 stream?.close()
 
                 bitmap = original
-
             } catch (_: Exception) {
-
                 bitmap = null
             }
         }
 
         private fun startDrawing() {
-
             if (thread?.isAlive == true) {
                 return
             }
@@ -130,13 +113,10 @@ class FlowWallpaperService : WallpaperService() {
             running = true
 
             thread = Thread {
-
                 var time = 0f
 
                 while (running) {
-
-                    val frameStart =
-                        System.nanoTime()
+                    val frameStart = System.nanoTime()
 
                     drawFrame(time)
 
@@ -144,13 +124,11 @@ class FlowWallpaperService : WallpaperService() {
 
                     val elapsed =
                         (
-                            System.nanoTime() -
-                                frameStart
-                            ) / 1_000_000L
+                            System.nanoTime() - frameStart
+                        ) / 1_000_000L
 
                     val sleep =
-                        (16L - elapsed)
-                            .coerceAtLeast(1L)
+                        (16L - elapsed).coerceAtLeast(1L)
 
                     try {
                         Thread.sleep(sleep)
@@ -163,11 +141,9 @@ class FlowWallpaperService : WallpaperService() {
         }
 
         private fun stopDrawing() {
-
             running = false
 
             thread?.interrupt()
-
             thread = null
         }
 
@@ -175,7 +151,6 @@ class FlowWallpaperService : WallpaperService() {
             width: Float,
             height: Float
         ) {
-
             val list =
                 ArrayList<PolygonPiece>()
 
@@ -192,7 +167,6 @@ class FlowWallpaperService : WallpaperService() {
                 height / rows
 
             for (row in 0 until rows) {
-
                 for (column in 0 until columns) {
 
                     val centerX =
@@ -216,8 +190,7 @@ class FlowWallpaperService : WallpaperService() {
                         random.nextFloat() * 360f
 
                     val phase =
-                        random.nextFloat() *
-                            6.28f
+                        random.nextFloat() * 6.28f
 
                     val speed =
                         0.5f +
@@ -225,8 +198,10 @@ class FlowWallpaperService : WallpaperService() {
 
                     val distance =
                         minDimension *
-                            (0.15f +
-                                random.nextFloat() * 0.55f)
+                            (
+                                0.15f +
+                                    random.nextFloat() * 0.55f
+                            )
 
                     list.add(
                         PolygonPiece(
@@ -272,11 +247,7 @@ class FlowWallpaperService : WallpaperService() {
                 if (image == null) {
 
                     canvas.drawColor(
-                        Color.rgb(
-                            7,
-                            11,
-                            24
-                        )
+                        Color.rgb(7, 11, 24)
                     )
 
                     drawWaitingMessage(
@@ -288,30 +259,18 @@ class FlowWallpaperService : WallpaperService() {
                     return
                 }
 
-                if (
-                    pieces.size != 24
-                ) {
+                if (pieces.size != 24) {
                     createPieces(
                         width,
                         height
                     )
                 }
 
-                /*
-                 * One complete animation cycle.
-                 *
-                 * 0.0 -> pieces scattered
-                 * 0.5 -> pieces return
-                 * 1.0 -> full picture revealed
-                 */
-
                 val cycle =
                     (time / 7.0f) % 1.0f
 
                 val reveal =
-                    smoothStep(
-                        cycle
-                    )
+                    smoothStep(cycle)
 
                 drawPolygonPhoto(
                     canvas,
@@ -325,9 +284,7 @@ class FlowWallpaperService : WallpaperService() {
             } finally {
 
                 try {
-                    holder.unlockCanvasAndPost(
-                        canvas
-                    )
+                    holder.unlockCanvasAndPost(canvas)
                 } catch (_: Exception) {
                 }
             }
@@ -342,22 +299,9 @@ class FlowWallpaperService : WallpaperService() {
             time: Float
         ) {
 
-            /*
-             * First draw a very dark background.
-             */
             canvas.drawColor(
-                Color.rgb(
-                    3,
-                    5,
-                    12
-                )
+                Color.rgb(3, 5, 12)
             )
-
-            /*
-             * Draw each polygon as a moving
-             * window containing its correct
-             * section of the photograph.
-             */
 
             for (piece in pieces) {
 
@@ -367,15 +311,6 @@ class FlowWallpaperService : WallpaperService() {
                             piece.phase
                     ).toFloat()
 
-                /*
-                 * At the beginning, pieces are
-                 * pushed away from their final
-                 * positions.
-                 *
-                 * As reveal approaches 1,
-                 * they return to the correct
-                 * position.
-                 */
                 val scatter =
                     (1f - reveal) *
                         piece.distance
@@ -398,17 +333,11 @@ class FlowWallpaperService : WallpaperService() {
                 val centerY =
                     piece.y + dy
 
-                /*
-                 * Zoom effect.
-                 */
                 val zoom =
                     0.55f +
                         reveal * 0.45f +
                         wave * 0.08f
 
-                /*
-                 * Rotation effect.
-                 */
                 val rotation =
                     piece.rotation +
                         wave * 35f +
@@ -425,15 +354,8 @@ class FlowWallpaperService : WallpaperService() {
 
                 canvas.save()
 
-                /*
-                 * The polygon becomes a mask.
-                 */
                 canvas.clipPath(path)
 
-                /*
-                 * Calculate how the original
-                 * photograph fills the screen.
-                 */
                 val matrix =
                     createImageMatrix(
                         image,
@@ -441,14 +363,6 @@ class FlowWallpaperService : WallpaperService() {
                         height
                     )
 
-                /*
-                 * Move the image together with
-                 * its polygon piece.
-                 *
-                 * This is what makes each polygon
-                 * contain the correct part of the
-                 * original photograph.
-                 */
                 matrix.postTranslate(
                     centerX - piece.x,
                     centerY - piece.y
@@ -462,6 +376,7 @@ class FlowWallpaperService : WallpaperService() {
                 )
 
                 paint.alpha = 255
+                paint.style = Paint.Style.FILL
 
                 canvas.drawBitmap(
                     image,
@@ -471,9 +386,6 @@ class FlowWallpaperService : WallpaperService() {
 
                 canvas.restore()
 
-                /*
-                 * Soft outline around every piece.
-                 */
                 paint.style =
                     Paint.Style.STROKE
 
@@ -496,13 +408,6 @@ class FlowWallpaperService : WallpaperService() {
                     Paint.Style.FILL
             }
 
-            /*
-             * During the final part of the cycle,
-             * gently reveal the entire photograph.
-             *
-             * This creates the "everything becomes
-             * one full picture" moment.
-             */
             if (reveal > 0.82f) {
 
                 val alpha =
@@ -510,12 +415,7 @@ class FlowWallpaperService : WallpaperService() {
                         (reveal - 0.82f) /
                             0.18f *
                             255f
-                        )
-                        .toInt()
-                        .coerceIn(
-                            0,
-                            255
-                        )
+                    ).toInt().coerceIn(0, 255)
 
                 paint.alpha = alpha
 
@@ -562,26 +462,18 @@ class FlowWallpaperService : WallpaperService() {
 
                 val x =
                     cx +
-                        cos(angle)
-                            .toFloat() *
+                        cos(angle).toFloat() *
                         radius
 
                 val y =
                     cy +
-                        sin(angle)
-                            .toFloat() *
+                        sin(angle).toFloat() *
                         radius
 
                 if (i == 0) {
-                    path.moveTo(
-                        x,
-                        y
-                    )
+                    path.moveTo(x, y)
                 } else {
-                    path.lineTo(
-                        x,
-                        y
-                    )
+                    path.lineTo(x, y)
                 }
             }
 
@@ -605,10 +497,6 @@ class FlowWallpaperService : WallpaperService() {
             val bitmapHeight =
                 bitmap.height.toFloat()
 
-            /*
-             * Center-crop the photograph so
-             * it completely covers the screen.
-             */
             val scale =
                 maxOf(
                     width / bitmapWidth,
@@ -645,10 +533,7 @@ class FlowWallpaperService : WallpaperService() {
         ): Float {
 
             val x =
-                value.coerceIn(
-                    0f,
-                    1f
-                )
+                value.coerceIn(0f, 1f)
 
             return x * x *
                 (3f - 2f * x)
@@ -668,6 +553,9 @@ class FlowWallpaperService : WallpaperService() {
 
             paint.textAlign =
                 Paint.Align.CENTER
+
+            paint.style =
+                Paint.Style.FILL
 
             canvas.drawText(
                 "Choose a photo",
