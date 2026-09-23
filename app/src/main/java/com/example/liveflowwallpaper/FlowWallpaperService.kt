@@ -673,8 +673,14 @@ class FlowWallpaperService : WallpaperService() {
             var alpha = 1f
 
             val shape: ShapeType =
-                ShapeType.values().random()
-
+    when (shapeMode) {
+        "Circle" -> ShapeType.CIRCLE
+        "Rectangle" -> ShapeType.RECTANGLE
+        "Triangle" -> ShapeType.TRIANGLE
+        "Pentagon" -> ShapeType.PENTAGON
+        "Hexagon" -> ShapeType.HEXAGON
+        else -> ShapeType.values().random()
+    }
         }
     }
 }
