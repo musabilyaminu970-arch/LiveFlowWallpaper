@@ -30,15 +30,16 @@ class FlowWallpaperService : WallpaperService() {
         private var backgroundBitmap: Bitmap? = null
         private var flowBitmap: Bitmap? = null
 
-        private val paint =
-            Paint(
-                Paint.ANTI_ALIAS_FLAG or
-                    Paint.FILTER_BITMAP_FLAG
-            )
+        private val paint = Paint(
+            Paint.ANTI_ALIAS_FLAG or
+                Paint.FILTER_BITMAP_FLAG
+        )
 
         private val random =
             Random(System.currentTimeMillis())
 
+        private val columns = 6
+        private val rows = 6
         private val pieceCount = 36
 
         private val startX =
@@ -53,13 +54,22 @@ class FlowWallpaperService : WallpaperService() {
         private val targetY =
             FloatArray(pieceCount)
 
+        private val driftX =
+            FloatArray(pieceCount)
+
+        private val driftY =
+            FloatArray(pieceCount)
+
         private val rotation =
             FloatArray(pieceCount)
 
-        private val phase =
+        private val rotationSpeed =
             FloatArray(pieceCount)
 
-        private val size =
+        private val randomPhase =
+            FloatArray(pieceCount)
+
+        private val randomRadius =
             FloatArray(pieceCount)
 
         private var width = 0
@@ -67,17 +77,7 @@ class FlowWallpaperService : WallpaperService() {
 
         private var animationStart = 0L
 
-        /*
-         * Animation length:
-         *
-         * 0.0 - 0.35  pieces come together
-         * 0.35 - 0.55 photo is fully revealed
-         * 0.55 - 0.70 zoom out
-         * 0.70 - 0.85 zoom in
-         * 0.85 - 1.00 pieces scatter again
-         */
-
-        private val animationLength = 12000L
+        private val animationLength = 14000L
 
         override fun onVisibilityChanged(
             visible: Boolean
@@ -86,8 +86,13 @@ class FlowWallpaperService : WallpaperService() {
 
             if (visible) {
                 loadPhotos()
-                animationStart = System.currentTimeMillis()
+                createPieces()
+
+                animationStart =
+                    System.currentTimeMillis()
+
                 startDrawing()
+
             } else {
                 stopDrawing()
             }
@@ -111,6 +116,9 @@ class FlowWallpaperService : WallpaperService() {
 
             loadPhotos()
             createPieces()
+
+            animationStart =
+                System.currentTimeMillis()
 
             if (running) {
                 startDrawing()
@@ -187,9 +195,6 @@ class FlowWallpaperService : WallpaperService() {
                 return
             }
 
-            val columns = 6
-            val rows = 6
-
             val cellWidth =
                 width.toFloat() / columns
 
@@ -203,24 +208,17 @@ class FlowWallpaperService : WallpaperService() {
                 for (column in 0 until columns) {
 
                     if (index >= pieceCount) {
-                        break
+                        return
                     }
 
-                    val tx =
+                    targetX[index] =
                         column * cellWidth +
                             cellWidth / 2f
 
-                    val ty =
+                    targetY[index] =
                         row * cellHeight +
                             cellHeight / 2f
 
-                    targetX[index] = tx
-                    targetY[index] = ty
-
-                    /*
-                     * Start positions are deliberately
-                     * scattered outside their final location.
-                     */
                     startX[index] =
                         random.nextFloat() *
                             width
@@ -229,19 +227,42 @@ class FlowWallpaperService : WallpaperService() {
                         random.nextFloat() *
                             height
 
+                    driftX[index] =
+                        (
+                            random.nextFloat() -
+                                0.5f
+                            ) *
+                            width *
+                            0.45f
+
+                    driftY[index] =
+                        (
+                            random.nextFloat() -
+                                0.5f
+                            ) *
+                            height *
+                            0.45f
+
                     rotation[index] =
                         random.nextFloat() *
-                            360f - 180f
+                            720f -
+                            360f
 
-                    phase[index] =
+                    rotationSpeed[index] =
+                        (
+                            random.nextFloat() -
+                                0.5f
+                            ) *
+                            720f
+
+                    randomPhase[index] =
                         random.nextFloat() *
-                            6.28f
+                            6.28318f
 
-                    size[index] =
-                        min(
-                            cellWidth,
-                            cellHeight
-                        ) * 0.82f
+                    randomRadius[index] =
+                        0.5f +
+                            random.nextFloat() *
+                            1.2f
 
                     index++
                 }
@@ -254,20 +275,19 @@ class FlowWallpaperService : WallpaperService() {
                 return
             }
 
-            thread =
-                Thread {
+            thread = Thread {
 
-                    while (running) {
+                while (running) {
 
-                        drawFrame()
+                    drawFrame()
 
-                        try {
-                            Thread.sleep(16L)
-                        } catch (_: InterruptedException) {
-                            break
-                        }
+                    try {
+                        Thread.sleep(16L)
+                    } catch (_: InterruptedException) {
+                        break
                     }
                 }
+            }
 
             thread?.start()
         }
@@ -282,12 +302,9 @@ class FlowWallpaperService : WallpaperService() {
 
         private fun drawFrame() {
 
-            val holder =
-                surfaceHolder
-
             val canvas =
                 try {
-                    holder.lockCanvas()
+                    surfaceHolder.lockCanvas()
                 } catch (_: Exception) {
                     null
                 }
@@ -305,29 +322,36 @@ class FlowWallpaperService : WallpaperService() {
                 drawBackground(canvas)
 
                 val elapsed =
-                    (
-                        System.currentTimeMillis() -
-                            animationStart
-                        )
+                    System.currentTimeMillis() -
+                        animationStart
 
-                val raw =
+                val time =
                     (
                         elapsed %
                             animationLength
                         ).toFloat() /
                         animationLength
 
-                drawFlowAnimation(
+                if (elapsed >= animationLength) {
+
+                    animationStart =
+                        System.currentTimeMillis()
+
+                    createPieces()
+                }
+
+                drawAnimation(
                     canvas,
-                    raw
+                    time
                 )
 
             } finally {
 
                 try {
-                    holder.unlockCanvasAndPost(
-                        canvas
-                    )
+                    surfaceHolder
+                        .unlockCanvasAndPost(
+                            canvas
+                        )
                 } catch (_: Exception) {
                 }
             }
@@ -339,10 +363,7 @@ class FlowWallpaperService : WallpaperService() {
 
             val bitmap =
                 backgroundBitmap
-
-            if (bitmap == null) {
-                return
-            }
+                    ?: return
 
             drawCoverBitmap(
                 canvas,
@@ -351,7 +372,7 @@ class FlowWallpaperService : WallpaperService() {
             )
         }
 
-        private fun drawFlowAnimation(
+        private fun drawAnimation(
             canvas: Canvas,
             time: Float
         ) {
@@ -360,32 +381,24 @@ class FlowWallpaperService : WallpaperService() {
                 flowBitmap
                     ?: return
 
-            /*
-             * First part:
-             * scattered pieces move toward
-             * their correct positions.
-             */
-            if (time < 0.35f) {
+            if (time < 0.48f) {
 
-                val p =
+                val progress =
                     smoothStep(
-                        time / 0.35f
+                        time / 0.48f
                     )
 
                 drawPieces(
                     canvas,
                     bitmap,
-                    p,
+                    progress,
                     false
                 )
 
                 return
             }
 
-            /*
-             * Full photo reveal.
-             */
-            if (time < 0.55f) {
+            if (time < 0.58f) {
 
                 drawFullPhoto(
                     canvas,
@@ -396,19 +409,17 @@ class FlowWallpaperService : WallpaperService() {
                 return
             }
 
-            /*
-             * Zoom OUT.
-             */
-            if (time < 0.70f) {
+            if (time < 0.68f) {
 
-                val p =
+                val progress =
                     smoothStep(
-                        (time - 0.55f) /
-                            0.15f
+                        (time - 0.58f) /
+                            0.10f
                     )
 
                 val zoom =
-                    1f - 0.12f * p
+                    1f -
+                        0.12f * progress
 
                 drawFullPhoto(
                     canvas,
@@ -419,20 +430,17 @@ class FlowWallpaperService : WallpaperService() {
                 return
             }
 
-            /*
-             * Zoom IN again.
-             */
-            if (time < 0.85f) {
+            if (time < 0.78f) {
 
-                val p =
+                val progress =
                     smoothStep(
-                        (time - 0.70f) /
-                            0.15f
+                        (time - 0.68f) /
+                            0.10f
                     )
 
                 val zoom =
                     0.88f +
-                        0.12f * p
+                        0.12f * progress
 
                 drawFullPhoto(
                     canvas,
@@ -443,29 +451,24 @@ class FlowWallpaperService : WallpaperService() {
                 return
             }
 
-            /*
-             * Final part:
-             * photo breaks back into pieces.
-             */
-            val p =
+            val progress =
                 smoothStep(
-                    (time - 0.85f) /
-                        0.15f
+                    (time - 0.78f) /
+                        0.22f
                 )
 
             drawPieces(
                 canvas,
                 bitmap,
-                1f - p,
+                1f - progress,
                 true
             )
         }
-
-        private fun drawPieces(
+                private fun drawPieces(
             canvas: Canvas,
             bitmap: Bitmap,
             progress: Float,
-            scattered: Boolean
+            scattering: Boolean
         ) {
 
             val prefs =
@@ -474,14 +477,11 @@ class FlowWallpaperService : WallpaperService() {
                     MODE_PRIVATE
                 )
 
-            val shape =
+            val shapeMode =
                 prefs.getInt(
                     "shape_mode",
                     0
                 )
-
-            val columns = 6
-            val rows = 6
 
             val cellWidth =
                 width.toFloat() /
@@ -507,99 +507,156 @@ class FlowWallpaperService : WallpaperService() {
                     val targetCY =
                         targetY[index]
 
-                    val x =
-                        lerp(
-                            startX[index],
-                            targetCX,
-                            progress
+                    val startCX =
+                        startX[index]
+
+                    val startCY =
+                        startY[index]
+
+                    val wave =
+                        sin(
+                            randomPhase[index] +
+                                progress * 7.5f
                         )
 
-                    val y =
-                        lerp(
-                            startY[index],
-                            targetCY,
-                            progress
+                    val wave2 =
+                        cos(
+                            randomPhase[index] +
+                                progress * 5.2f
                         )
 
-                    val movingX =
-                        x +
-                            sin(
-                                phase[index] +
-                                    progress * 8f
-                            ) *
+                    val randomMoveX =
+                        driftX[index] *
+                            progress +
+                            wave *
                             cellWidth *
-                            0.16f
+                            randomRadius[index]
 
-                    val movingY =
-                        y +
-                            cos(
-                                phase[index] +
-                                    progress * 7f
-                            ) *
+                    val randomMoveY =
+                        driftY[index] *
+                            progress +
+                            wave2 *
                             cellHeight *
-                            0.16f
+                            randomRadius[index]
+
+                    val centerX: Float
+                    val centerY: Float
+
+                    if (!scattering) {
+
+                        centerX =
+                            lerp(
+                                startCX,
+                                targetCX,
+                                progress
+                            ) +
+                                randomMoveX *
+                                (1f - progress)
+
+                        centerY =
+                            lerp(
+                                startCY,
+                                targetCY,
+                                progress
+                            ) +
+                                randomMoveY *
+                                (1f - progress)
+
+                    } else {
+
+                        centerX =
+                            targetCX +
+                                randomMoveX *
+                                progress
+
+                        centerY =
+                            targetCY +
+                                randomMoveY *
+                                progress
+                    }
+
+                    val sizeProgress =
+                        if (!scattering) {
+
+                            0.18f +
+                                0.82f *
+                                smoothStep(progress)
+
+                        } else {
+
+                            1f -
+                                0.82f *
+                                smoothStep(progress)
+                        }
+
+                    val halfWidth =
+                        cellWidth *
+                            0.50f *
+                            sizeProgress
+
+                    val halfHeight =
+                        cellHeight *
+                            0.50f *
+                            sizeProgress
 
                     val currentRotation =
-                        rotation[index] *
-                            (1f - progress)
+                        if (!scattering) {
 
-                    val left =
-                        column * cellWidth
+                            rotation[index] *
+                                (1f - progress) +
+                                rotationSpeed[index] *
+                                sin(
+                                    progress * 3f
+                                ) *
+                                (1f - progress)
 
-                    val top =
-                        row * cellHeight
+                        } else {
 
-                    val right =
-                        left + cellWidth
+                            rotation[index] +
+                                rotationSpeed[index] *
+                                progress
+                        }
 
-                    val bottom =
-                        top + cellHeight
+                    val sourceLeft =
+                        bitmap.width *
+                            column /
+                            columns
+
+                    val sourceTop =
+                        bitmap.height *
+                            row /
+                            rows
+
+                    val sourceRight =
+                        bitmap.width *
+                            (column + 1) /
+                            columns
+
+                    val sourceBottom =
+                        bitmap.height *
+                            (row + 1) /
+                            rows
 
                     val source =
                         Rect(
-                            (
-                                bitmap.width *
-                                    left /
-                                    width
-                                ).toInt(),
-
-                            (
-                                bitmap.height *
-                                    top /
-                                    height
-                                ).toInt(),
-
-                            (
-                                bitmap.width *
-                                    right /
-                                    width
-                                ).toInt(),
-
-                            (
-                                bitmap.height *
-                                    bottom /
-                                    height
-                                ).toInt()
+                            sourceLeft,
+                            sourceTop,
+                            sourceRight,
+                            sourceBottom
                         )
-
-                    val halfWidth =
-                        cellWidth * 0.47f
-
-                    val halfHeight =
-                        cellHeight * 0.47f
 
                     val destination =
                         RectF(
-                            movingX -
+                            centerX -
                                 halfWidth,
 
-                            movingY -
+                            centerY -
                                 halfHeight,
 
-                            movingX +
+                            centerX +
                                 halfWidth,
 
-                            movingY +
+                            centerY +
                                 halfHeight
                         )
 
@@ -607,15 +664,15 @@ class FlowWallpaperService : WallpaperService() {
 
                     canvas.rotate(
                         currentRotation,
-                        movingX,
-                        movingY
+                        centerX,
+                        centerY
                     )
 
                     val path =
                         createShapePath(
-                            shape,
-                            movingX,
-                            movingY,
+                            shapeMode,
+                            centerX,
+                            centerY,
                             halfWidth,
                             halfHeight,
                             index
@@ -651,11 +708,6 @@ class FlowWallpaperService : WallpaperService() {
             var actualShape =
                 shapeMode
 
-            /*
-             * Random mode:
-             * randomly choose a shape for
-             * every piece.
-             */
             if (shapeMode == 5) {
 
                 actualShape =
@@ -664,9 +716,6 @@ class FlowWallpaperService : WallpaperService() {
 
             when (actualShape) {
 
-                /*
-                 * Circle
-                 */
                 0 -> {
 
                     path.addOval(
@@ -680,9 +729,6 @@ class FlowWallpaperService : WallpaperService() {
                     )
                 }
 
-                /*
-                 * Rectangle
-                 */
                 1 -> {
 
                     path.addRect(
@@ -696,44 +742,44 @@ class FlowWallpaperService : WallpaperService() {
                     )
                 }
 
-                /*
-                 * Triangle
-                 */
                 2 -> {
 
                     addPolygon(
                         path,
                         cx,
                         cy,
-                        halfWidth,
+                        min(
+                            halfWidth,
+                            halfHeight
+                        ),
                         3
                     )
                 }
 
-                /*
-                 * Pentagon
-                 */
                 3 -> {
 
                     addPolygon(
                         path,
                         cx,
                         cy,
-                        halfWidth,
+                        min(
+                            halfWidth,
+                            halfHeight
+                        ),
                         5
                     )
                 }
 
-                /*
-                 * Hexagon
-                 */
                 else -> {
 
                     addPolygon(
                         path,
                         cx,
                         cy,
-                        halfWidth,
+                        min(
+                            halfWidth,
+                            halfHeight
+                        ),
                         6
                     )
                 }
@@ -761,18 +807,31 @@ class FlowWallpaperService : WallpaperService() {
 
                 val x =
                     cx +
-                        cos(angle).toFloat() *
+                        cos(
+                            angle
+                        ).toFloat() *
                         radius
 
                 val y =
                     cy +
-                        sin(angle).toFloat() *
+                        sin(
+                            angle
+                        ).toFloat() *
                         radius
 
                 if (i == 0) {
-                    path.moveTo(x, y)
+
+                    path.moveTo(
+                        x,
+                        y
+                    )
+
                 } else {
-                    path.lineTo(x, y)
+
+                    path.lineTo(
+                        x,
+                        y
+                    )
                 }
             }
 
@@ -791,11 +850,22 @@ class FlowWallpaperService : WallpaperService() {
             val centerY =
                 height / 2f
 
+            val scale =
+                maxOf(
+                    width.toFloat() /
+                        bitmap.width,
+
+                    height.toFloat() /
+                        bitmap.height
+                ) * zoom
+
             val drawWidth =
-                width * zoom
+                bitmap.width *
+                    scale
 
             val drawHeight =
-                height * zoom
+                bitmap.height *
+                    scale
 
             val destination =
                 RectF(
@@ -836,16 +906,20 @@ class FlowWallpaperService : WallpaperService() {
                 ) * zoom
 
             val drawWidth =
-                bitmap.width * scale
+                bitmap.width *
+                    scale
 
             val drawHeight =
-                bitmap.height * scale
+                bitmap.height *
+                    scale
 
             val left =
-                (width - drawWidth) / 2f
+                (width - drawWidth) /
+                    2f
 
             val top =
-                (height - drawHeight) / 2f
+                (height - drawHeight) /
+                    2f
 
             canvas.drawBitmap(
                 bitmap,
