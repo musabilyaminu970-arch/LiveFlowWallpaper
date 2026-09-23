@@ -1,88 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<ScrollView
+<LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true">
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="#070B18"
+    android:padding="24dp">
 
-    <LinearLayout
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/app_name"
+        android:textColor="#FFFFFF"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        android:gravity="center" />
+
+    <TextView
+        android:id="@+id/status_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Create your own live flow wallpaper"
+        android:textColor="#B8C7E8"
+        android:textSize="16sp"
+        android:gravity="center" />
+
+    <Button
+        android:id="@+id/set_wallpaper_button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="24dp"
-        android:gravity="center_horizontal">
+        android:layout_marginTop="36dp"
+        android:text="@string/set_wallpaper" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Live Flow Wallpaper"
-            android:textSize="28sp"
-            android:textStyle="bold"
-            android:textColor="#FFFFFF"
-            android:layout_marginTop="30dp"
-            android:layout_marginBottom="12dp" />
+    <Button
+        android:id="@+id/open_picker_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="@string/open_picker" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Create your own flowing photo wallpaper"
-            android:textSize="15sp"
-            android:textColor="#CCCCCC"
-            android:gravity="center"
-            android:layout_marginBottom="30dp" />
-
-        <Button
-            android:id="@+id/backgroundButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Choose Background Photo"
-            android:textSize="16sp"
-            android:layout_marginBottom="14dp" />
-
-        <Button
-            android:id="@+id/flowButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Choose Flow Photo"
-            android:textSize="16sp"
-            android:layout_marginBottom="14dp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Piece Shape"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:textColor="#FFFFFF"
-            android:layout_marginTop="10dp"
-            android:layout_marginBottom="8dp" />
-
-        <Spinner
-            android:id="@+id/shapeSpinner"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:spinnerMode="dropdown"
-            android:layout_marginBottom="24dp" />
-                <Button
-            android:id="@+id/previewButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Preview Experience"
-            android:textSize="17sp"
-            android:textStyle="bold"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="30dp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Choose your photos, select a piece shape, then preview the animation."
-            android:textSize="14sp"
-            android:textColor="#BBBBBB"
-            android:gravity="center"
-            android:padding="8dp" />
-
-    </LinearLayout>
-
-</ScrollView>
+</LinearLayout>
