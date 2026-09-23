@@ -1,142 +1,87 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#070B18">
+    android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="22dp">
+        android:padding="24dp"
+        android:gravity="center_horizontal">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Live Flow"
+            android:text="Live Flow Wallpaper"
+            android:textSize="28sp"
+            android:textStyle="bold"
             android:textColor="#FFFFFF"
-            android:textSize="32sp"
-            android:textStyle="bold" />
+            android:layout_marginTop="30dp"
+            android:layout_marginBottom="12dp" />
 
         <TextView
-            android:id="@+id/status_text"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
             android:text="Create your own flowing photo wallpaper"
-            android:textColor="#B8C7E8"
-            android:textSize="15sp" />
-
-        <!-- BACKGROUND PHOTO -->
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            android:text="Background Photo"
-            android:textColor="#FFFFFF"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
-        <ImageView
-            android:id="@+id/background_preview"
-            android:layout_width="match_parent"
-            android:layout_height="170dp"
-            android:layout_marginTop="10dp"
-            android:background="#11182D"
-            android:scaleType="centerCrop"
-            android:contentDescription="Background photo preview" />
+            android:textSize="15sp"
+            android:textColor="#CCCCCC"
+            android:gravity="center"
+            android:layout_marginBottom="30dp" />
 
         <Button
-            android:id="@+id/choose_background_button"
+            android:id="@+id/backgroundButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
             android:text="Choose Background Photo"
-            android:textAllCaps="false" />
-
-        <!-- FLOW PHOTO -->
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="26dp"
-            android:text="Flow Photo"
-            android:textColor="#FFFFFF"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
-        <ImageView
-            android:id="@+id/flow_preview"
-            android:layout_width="match_parent"
-            android:layout_height="170dp"
-            android:layout_marginTop="10dp"
-            android:background="#11182D"
-            android:scaleType="centerCrop"
-            android:contentDescription="Flow photo preview" />
+            android:textSize="16sp"
+            android:layout_marginBottom="14dp" />
 
         <Button
-            android:id="@+id/choose_flow_button"
+            android:id="@+id/flowButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
             android:text="Choose Flow Photo"
-            android:textAllCaps="false" />
-
-        <!-- SHAPE -->
+            android:textSize="16sp"
+            android:layout_marginBottom="14dp" />
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            android:text="Shape"
+            android:text="Piece Shape"
+            android:textSize="16sp"
+            android:textStyle="bold"
             android:textColor="#FFFFFF"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="8dp" />
 
         <Spinner
-            android:id="@+id/shape_spinner"
+            android:id="@+id/shapeSpinner"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp" />
-
-        <!-- SPEED -->
+            android:spinnerMode="dropdown"
+            android:layout_marginBottom="24dp" />
+                <Button
+            android:id="@+id/previewButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Preview Experience"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="30dp" />
 
         <TextView
-            android:id="@+id/speed_label"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="22dp"
-            android:text="Animation Speed"
-            android:textColor="#FFFFFF"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
-        <SeekBar
-            android:id="@+id/speed_seekbar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:max="100"
-            android:progress="50" />
-
-        <!-- BUTTONS -->
-
-        <Button
-            android:id="@+id/preview_button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="Preview Experience"
-            android:textAllCaps="false" />
-
-        <Button
-            android:id="@+id/set_wallpaper_button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="Set Live Flow Wallpaper"
-            android:textAllCaps="false" />
+            android:text="Choose your photos, select a piece shape, then preview the animation."
+            android:textSize="14sp"
+            android:textColor="#BBBBBB"
+            android:gravity="center"
+            android:padding="8dp" />
 
     </LinearLayout>
 
