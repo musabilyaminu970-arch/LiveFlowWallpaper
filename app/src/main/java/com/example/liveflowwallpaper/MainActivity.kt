@@ -1,22 +1,16 @@
 package com.example.liveflowwallpaper
 
 import android.app.Activity
-import android.app.WallpaperManager
-import android.content.ComponentName
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Button
-import android.widget.Spinner
-import android.widget.ArrayAdapter
 import android.widget.Toast
 
 class MainActivity : Activity() {
 
-    private lateinit var previewButton: Button
-    private lateinit var backgroundButton: Button
-    private lateinit var flowButton: Button
-    private lateinit var shapeSpinner: Spinner
+    private lateinit var setWallpaperButton: Button
+    private lateinit var openPickerButton: Button
 
     private val backgroundRequestCode = 101
     private val flowRequestCode = 102
@@ -26,87 +20,23 @@ class MainActivity : Activity() {
 
         setContentView(R.layout.activity_main)
 
-        previewButton =
-            findViewById(R.id.previewButton)
+        setWallpaperButton =
+            findViewById(R.id.set_wallpaper_button)
 
-        backgroundButton =
-            findViewById(R.id.backgroundButton)
+        openPickerButton =
+            findViewById(R.id.open_picker_button)
 
-        flowButton =
-            findViewById(R.id.flowButton)
-
-        shapeSpinner =
-            findViewById(R.id.shapeSpinner)
-
-        setupShapeSpinner()
-
-        previewButton.setOnClickListener {
-            previewWallpaper()
-        }
-
-        backgroundButton.setOnClickListener {
+        setWallpaperButton.setOnClickListener {
             openPhotoPicker(backgroundRequestCode)
         }
 
-        flowButton.setOnClickListener {
+        openPickerButton.setOnClickListener {
             openPhotoPicker(flowRequestCode)
         }
     }
 
-    private fun setupShapeSpinner() {
-        val shapes = arrayOf(
-            "Circle",
-            "Rectangle",
-            "Triangle",
-            "Pentagon",
-            "Hexagon",
-            "Random"
-        )
-
-        val adapter = ArrayAdapter(
-            this,
-            android.R.layout.simple_spinner_item,
-            shapes
-        )
-
-        adapter.setDropDownViewResource(
-            android.R.layout.simple_spinner_dropdown_item
-        )
-
-        shapeSpinner.adapter = adapter
-    }
-
-    private fun previewWallpaper() {
-        try {
-            val intent = Intent(
-                WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER
-            )
-
-            intent.putExtra(
-                WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,
-                ComponentName(
-                    this,
-                    FlowWallpaperService::class.java
-                )
-            )
-
-            startActivity(intent)
-
-        } catch (e: Exception) {
-            Toast.makeText(
-                this,
-                "Preview could not be opened",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-    }
-
-    private fun openPhotoPicker(
-        requestCode: Int
-    ) {
-        val intent = Intent(
-            Intent.ACTION_OPEN_DOCUMENT
-        )
+    private fun openPhotoPicker(requestCode: Int) {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
 
         intent.type = "image/*"
 
@@ -159,35 +89,39 @@ class MainActivity : Activity() {
                 MODE_PRIVATE
             )
 
-        if (requestCode == backgroundRequestCode) {
+        when (requestCode) {
 
-            preferences.edit()
-                .putString(
-                    "background_photo",
-                    imageUri.toString()
-                )
-                .apply()
+            backgroundRequestCode -> {
 
-            Toast.makeText(
-                this,
-                "Background photo selected",
-                Toast.LENGTH_SHORT
-            ).show()
+                preferences.edit()
+                    .putString(
+                        "background_photo",
+                        imageUri.toString()
+                    )
+                    .apply()
 
-        } else if (requestCode == flowRequestCode) {
+                Toast.makeText(
+                    this,
+                    "Background photo selected",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
 
-            preferences.edit()
-                .putString(
-                    "flow_photo",
-                    imageUri.toString()
-                )
-                .apply()
+            flowRequestCode -> {
 
-            Toast.makeText(
-                this,
-                "Flow photo selected",
-                Toast.LENGTH_SHORT
-            ).show()
+                preferences.edit()
+                    .putString(
+                        "flow_photo",
+                        imageUri.toString()
+                    )
+                    .apply()
+
+                Toast.makeText(
+                    this,
+                    "Flow photo selected",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
         }
     }
 }
