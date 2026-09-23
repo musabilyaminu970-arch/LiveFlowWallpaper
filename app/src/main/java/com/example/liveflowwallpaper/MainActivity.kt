@@ -4,39 +4,150 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.Spinner
 import android.widget.Toast
 
 class MainActivity : Activity() {
 
-    private lateinit var setWallpaperButton: Button
-    private lateinit var openPickerButton: Button
+    private lateinit var backgroundButton: Button
+    private lateinit var flowButton: Button
+    private lateinit var previewButton: Button
+    private lateinit var shapeSpinner: Spinner
 
     private val backgroundRequestCode = 101
     private val flowRequestCode = 102
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreate(
+        savedInstanceState: Bundle?
+    ) {
         super.onCreate(savedInstanceState)
 
-        setContentView(R.layout.activity_main)
+        setContentView(
+            R.layout.activity_main
+        )
 
-        setWallpaperButton =
-            findViewById(R.id.set_wallpaper_button)
+        backgroundButton =
+            findViewById(
+                R.id.backgroundButton
+            )
 
-        openPickerButton =
-            findViewById(R.id.open_picker_button)
+        flowButton =
+            findViewById(
+                R.id.flowButton
+            )
 
-        setWallpaperButton.setOnClickListener {
-            openPhotoPicker(backgroundRequestCode)
+        previewButton =
+            findViewById(
+                R.id.previewButton
+            )
+
+        shapeSpinner =
+            findViewById(
+                R.id.shapeSpinner
+            )
+
+        setupShapeSpinner()
+
+        backgroundButton.setOnClickListener {
+            openPhotoPicker(
+                backgroundRequestCode
+            )
         }
 
-        openPickerButton.setOnClickListener {
-            openPhotoPicker(flowRequestCode)
+        flowButton.setOnClickListener {
+            openPhotoPicker(
+                flowRequestCode
+            )
+        }
+
+        previewButton.setOnClickListener {
+            saveShapeSelection()
+
+            val intent =
+                Intent(
+                    this,
+                    PreviewActivity::class.java
+                )
+
+            startActivity(intent)
         }
     }
 
-    private fun openPhotoPicker(requestCode: Int) {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
+    private fun setupShapeSpinner() {
+
+        val shapes = arrayOf(
+            "Circle",
+            "Rectangle",
+            "Triangle",
+            "Pentagon",
+            "Hexagon",
+            "Random"
+        )
+
+        val adapter =
+            ArrayAdapter(
+                this,
+                android.R.layout.simple_spinner_item,
+                shapes
+            )
+
+        adapter.setDropDownViewResource(
+            android.R.layout.simple_spinner_dropdown_item
+        )
+
+        shapeSpinner.adapter = adapter
+
+        val preferences =
+            getSharedPreferences(
+                "LiveFlow",
+                MODE_PRIVATE
+            )
+
+        val savedShape =
+            preferences.getString(
+                "piece_shape",
+                "Random"
+            )
+
+        val position =
+            shapes.indexOf(savedShape)
+
+        if (position >= 0) {
+            shapeSpinner.setSelection(
+                position
+            )
+        }
+    }
+
+    private fun saveShapeSelection() {
+
+        val selectedShape =
+            shapeSpinner.selectedItem
+                ?.toString()
+                ?: "Random"
+
+        getSharedPreferences(
+            "LiveFlow",
+            MODE_PRIVATE
+        )
+            .edit()
+            .putString(
+                "piece_shape",
+                selectedShape
+            )
+            .apply()
+    }
+
+    private fun openPhotoPicker(
+        requestCode: Int
+    ) {
+
+        val intent =
+            Intent(
+                Intent.ACTION_OPEN_DOCUMENT
+            )
 
         intent.type = "image/*"
 
@@ -72,14 +183,15 @@ class MainActivity : Activity() {
             return
         }
 
-        val imageUri: Uri =
+        val imageUri =
             data.data!!
 
         try {
-            contentResolver.takePersistableUriPermission(
-                imageUri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
+            contentResolver
+                .takePersistableUriPermission(
+                    imageUri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
         } catch (_: Exception) {
         }
 
