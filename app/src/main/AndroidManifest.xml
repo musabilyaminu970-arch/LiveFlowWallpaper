@@ -10,13 +10,13 @@
     <application
         android:allowBackup="true"
         android:label="Live Flow"
-        android:supportsRtl="true"
-        android:theme="@style/Theme.LiveFlowWallpaper">
+        android:supportsRtl="true">
 
         <activity
             android:name=".PreviewActivity"
             android:screenOrientation="portrait" />
-                <activity
+
+        <activity
             android:name=".MainActivity"
             android:exported="true">
 
