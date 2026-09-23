@@ -1,20 +1,17 @@
 package com.example.liveflowwallpaper
 
 import android.graphics.Bitmap
-import android.graphics.BitmapShader
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.LinearGradient
-import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Rect
-import android.graphics.Shader
-import android.graphics.Typeface
+import android.graphics.RectF
+import android.net.Uri
 import android.service.wallpaper.WallpaperService
 import android.view.SurfaceHolder
 import kotlin.math.cos
-import kotlin.math.min
 import kotlin.math.sin
 import kotlin.random.Random
 
@@ -36,19 +33,30 @@ class FlowWallpaperService : WallpaperService() {
         private var flowBitmap: Bitmap? = null
 
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-        private val bitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val bitmapPaint = Paint(
+            Paint.ANTI_ALIAS_FLAG or
+                Paint.FILTER_BITMAP_FLAG
+        )
 
-        private val random = Random(System.currentTimeMillis())
-        private val pieces = mutableListOf<Piece>()
+        private val random =
+            Random(System.currentTimeMillis())
 
-        private var state = AnimationState.ASSEMBLING
-        private var animationStart = System.currentTimeMillis()
+        private val pieces =
+            mutableListOf<Piece>()
+
+        private var state =
+            AnimationState.ASSEMBLING
+
+        private var animationStart =
+            System.currentTimeMillis()
 
         private val assembleDuration = 6500L
         private val staticDuration = 2500L
         private val breakDuration = 5000L
 
-        override fun onVisibilityChanged(visible: Boolean) {
+        override fun onVisibilityChanged(
+            visible: Boolean
+        ) {
             if (visible) {
                 running = true
                 startAnimation()
@@ -64,40 +72,64 @@ class FlowWallpaperService : WallpaperService() {
             width: Int,
             height: Int
         ) {
-            super.onSurfaceChanged(holder, format, width, height)
+            super.onSurfaceChanged(
+                holder,
+                format,
+                width,
+                height
+            )
 
             canvasWidth = width
             canvasHeight = height
 
-            createBitmaps()
+            loadSelectedPhotos()
             createPieces()
 
-            state = AnimationState.ASSEMBLING
-            animationStart = System.currentTimeMillis()
+            state =
+                AnimationState.ASSEMBLING
+
+            animationStart =
+                System.currentTimeMillis()
 
             if (running) {
                 startAnimation()
             }
         }
 
-        override fun onSurfaceDestroyed(holder: SurfaceHolder) {
+        override fun onSurfaceDestroyed(
+            holder: SurfaceHolder
+        ) {
             running = false
             stopAnimation()
+
+            backgroundBitmap?.recycle()
+            flowBitmap?.recycle()
+
+            backgroundBitmap = null
+            flowBitmap = null
+            pieces.clear()
+
             super.onSurfaceDestroyed(holder)
         }
 
         private fun startAnimation() {
-            if (animationThread?.isAlive == true) {
+            if (
+                animationThread?.isAlive == true
+            ) {
                 return
             }
 
             animationThread = Thread {
+
                 while (running) {
+
                     drawFrame()
 
                     try {
                         Thread.sleep(16L)
-                    } catch (_: InterruptedException) {
+                    } catch (
+                        _: InterruptedException
+                    ) {
                         break
                     }
                 }
@@ -111,253 +143,492 @@ class FlowWallpaperService : WallpaperService() {
             animationThread = null
         }
 
-        private fun createBitmaps() {
-            if (canvasWidth <= 0 || canvasHeight <= 0) {
+        private fun loadSelectedPhotos() {
+
+            if (
+                canvasWidth <= 0 ||
+                canvasHeight <= 0
+            ) {
                 return
             }
 
-            backgroundBitmap = Bitmap.createBitmap(
-                canvasWidth,
-                canvasHeight,
-                Bitmap.Config.ARGB_8888
-            )
+            val preferences =
+                getSharedPreferences(
+                    "LiveFlow",
+                    MODE_PRIVATE
+                )
 
-            flowBitmap = Bitmap.createBitmap(
-                canvasWidth,
-                canvasHeight,
-                Bitmap.Config.ARGB_8888
-            )
+            val backgroundUri =
+                preferences.getString(
+                    "background_photo",
+                    null
+                )
 
-            val backgroundCanvas = Canvas(backgroundBitmap!!)
-            backgroundCanvas.drawColor(Color.rgb(10, 13, 20))
+            val flowUri =
+                preferences.getString(
+                    "flow_photo",
+                    null
+                )
 
-            val backgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+            backgroundBitmap =
+                loadImageToScreen(
+                    backgroundUri,
+                    canvasWidth,
+                    canvasHeight
+                )
 
-            for (y in 0 until canvasHeight step 50) {
-                for (x in 0 until canvasWidth step 50) {
-                    val shade = 18 + ((x + y) % 25)
+            flowBitmap =
+                loadImageToScreen(
+                    flowUri,
+                    canvasWidth,
+                    canvasHeight
+                )
 
-                    backgroundPaint.color = Color.rgb(
-                        shade,
-                        shade + 3,
-                        shade + 9
+            if (backgroundBitmap == null) {
+                backgroundBitmap =
+                    Bitmap.createBitmap(
+                        canvasWidth,
+                        canvasHeight,
+                        Bitmap.Config.ARGB_8888
                     )
 
-                    backgroundCanvas.drawRect(
-                        x.toFloat(),
-                        y.toFloat(),
-                        (x + 50).toFloat(),
-                        (y + 50).toFloat(),
-                        backgroundPaint
+                Canvas(backgroundBitmap!!)
+                    .drawColor(
+                        Color.rgb(
+                            8,
+                            12,
+                            20
+                        )
                     )
-                }
             }
 
-            val flowCanvas = Canvas(flowBitmap!!)
+            if (flowBitmap == null) {
+                flowBitmap =
+                    Bitmap.createBitmap(
+                        canvasWidth,
+                        canvasHeight,
+                        Bitmap.Config.ARGB_8888
+                    )
 
-            flowCanvas.drawColor(Color.TRANSPARENT)
+                Canvas(flowBitmap!!)
+                    .drawColor(
+                        Color.TRANSPARENT
+                    )
+            }
+        }
 
-            val left = canvasWidth * 0.12f
-            val top = canvasHeight * 0.22f
-            val right = canvasWidth * 0.88f
-            val bottom = canvasHeight * 0.78f
+        private fun loadImageToScreen(
+            uriString: String?,
+            targetWidth: Int,
+            targetHeight: Int
+        ): Bitmap? {
 
-            val flowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+            if (uriString.isNullOrEmpty()) {
+                return null
+            }
 
-            flowPaint.shader = LinearGradient(
-                left,
-                top,
-                right,
-                bottom,
-                Color.rgb(35, 175, 255),
-                Color.rgb(170, 65, 245),
-                Shader.TileMode.CLAMP
-            )
+            return try {
 
-            flowCanvas.drawRoundRect(
-                left,
-                top,
-                right,
-                bottom,
-                45f,
-                45f,
-                flowPaint
-            )
+                val uri =
+                    Uri.parse(uriString)
 
-            val shinePaint = Paint(Paint.ANTI_ALIAS_FLAG)
+                val input =
+                    contentResolver
+                        .openInputStream(uri)
 
-            shinePaint.color = Color.argb(
-                85,
-                255,
-                255,
-                255
-            )
+                val original =
+                    BitmapFactory.decodeStream(input)
 
-            flowCanvas.drawCircle(
-                canvasWidth * 0.30f,
-                canvasHeight * 0.35f,
-                min(canvasWidth, canvasHeight) * 0.10f,
-                shinePaint
-            )
+                input?.close()
 
-            val textPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+                if (original == null) {
+                    return null
+                }
 
-            textPaint.color = Color.WHITE
-            textPaint.textAlign = Paint.Align.CENTER
-            textPaint.textSize =
-                min(canvasWidth, canvasHeight) * 0.075f
+                val scale =
+                    maxOf(
+                        targetWidth.toFloat() /
+                            original.width,
+                        targetHeight.toFloat() /
+                            original.height
+                    )
 
-            textPaint.typeface = Typeface.create(
-                Typeface.DEFAULT,
-                Typeface.BOLD
-            )
+                val scaledWidth =
+                    (original.width * scale)
+                        .toInt()
 
-            flowCanvas.drawText(
-                "LIVE FLOW",
-                canvasWidth / 2f,
-                canvasHeight * 0.53f,
-                textPaint
-            )
+                val scaledHeight =
+                    (original.height * scale)
+                        .toInt()
+
+                val scaled =
+                    Bitmap.createScaledBitmap(
+                        original,
+                        scaledWidth,
+                        scaledHeight,
+                        true
+                    )
+
+                if (
+                    scaled !== original &&
+                    !original.isRecycled
+                ) {
+                    original.recycle()
+                }
+
+                val left =
+                    (scaledWidth -
+                        targetWidth) / 2
+
+                val top =
+                    (scaledHeight -
+                        targetHeight) / 2
+
+                val result =
+                    Bitmap.createBitmap(
+                        scaled,
+                        left.coerceAtLeast(0),
+                        top.coerceAtLeast(0),
+                        targetWidth.coerceAtMost(
+                            scaled.width
+                        ),
+                        targetHeight.coerceAtMost(
+                            scaled.height
+                        )
+                    )
+
+                if (
+                    result !== scaled &&
+                    !scaled.isRecycled
+                ) {
+                    scaled.recycle()
+                }
+
+                result
+
+            } catch (_: Exception) {
+                null
+            }
         }
 
         private fun createPieces() {
+
             pieces.clear()
 
-            if (canvasWidth <= 0 || canvasHeight <= 0) {
+            val bitmap =
+                flowBitmap ?: return
+
+            if (
+                canvasWidth <= 0 ||
+                canvasHeight <= 0
+            ) {
                 return
             }
 
             val columns = 8
             val rows = 10
 
+            val left =
+                canvasWidth * 0.10f
+
+            val top =
+                canvasHeight * 0.18f
+
+            val right =
+                canvasWidth * 0.90f
+
+            val bottom =
+                canvasHeight * 0.82f
+
+            val regionWidth =
+                right - left
+
+            val regionHeight =
+                bottom - top
+
             val pieceWidth =
-                canvasWidth.toFloat() / columns
+                regionWidth / columns
 
             val pieceHeight =
-                canvasHeight.toFloat() / rows
+                regionHeight / rows
+
+            val preferences =
+                getSharedPreferences(
+                    "LiveFlow",
+                    MODE_PRIVATE
+                )
+
+            val selectedShape =
+                preferences.getString(
+                    "piece_shape",
+                    "Random"
+                ) ?: "Random"
 
             for (row in 0 until rows) {
+
                 for (column in 0 until columns) {
 
-                    val sourceX =
-                        column * pieceWidth
+                    val targetLeft =
+                        left +
+                            column * pieceWidth
 
-                    val sourceY =
-                        row * pieceHeight
+                    val targetTop =
+                        top +
+                            row * pieceHeight
 
-                    val targetX =
-                        sourceX + pieceWidth / 2f
+                    val sourceLeft =
+                        targetLeft
+                            .toInt()
+                            .coerceIn(
+                                0,
+                                bitmap.width - 1
+                            )
 
-                    val targetY =
-                        sourceY + pieceHeight / 2f
+                    val sourceTop =
+                        targetTop
+                            .toInt()
+                            .coerceIn(
+                                0,
+                                bitmap.height - 1
+                            )
+
+                    val sourceRight =
+                        (targetLeft +
+                            pieceWidth)
+                            .toInt()
+                            .coerceIn(
+                                sourceLeft + 1,
+                                bitmap.width
+                            )
+
+                    val sourceBottom =
+                        (targetTop +
+                            pieceHeight)
+                            .toInt()
+                            .coerceIn(
+                                sourceTop + 1,
+                                bitmap.height
+                            )
+
+                    val sourceRect =
+                        Rect(
+                            sourceLeft,
+                            sourceTop,
+                            sourceRight,
+                            sourceBottom
+                        )
+
+                    val pieceBitmap =
+                        Bitmap.createBitmap(
+                            bitmap,
+                            sourceRect.left,
+                            sourceRect.top,
+                            sourceRect.width(),
+                            sourceRect.height()
+                        )
+
+                    val shape =
+                        chooseShape(
+                            selectedShape
+                        )
 
                     pieces.add(
                         Piece(
-                            sourceX = sourceX,
-                            sourceY = sourceY,
-                            targetX = targetX,
-                            targetY = targetY,
+                            bitmap = pieceBitmap,
+                            targetX =
+                                targetLeft +
+                                    pieceWidth / 2f,
+                            targetY =
+                                targetTop +
+                                    pieceHeight / 2f,
+                            width =
+                                pieceWidth,
+                            height =
+                                pieceHeight,
                             scatterX =
                                 random.nextFloat() *
                                     canvasWidth,
                             scatterY =
                                 random.nextFloat() *
                                     canvasHeight,
-                            width = pieceWidth,
-                            height = pieceHeight,
                             startRotation =
                                 random.nextFloat() *
-                                    360f - 180f,
+                                    720f - 360f,
                             breakRotation =
                                 random.nextFloat() *
-                                    720f - 360f,
+                                    1080f - 540f,
                             startScale =
                                 0.20f +
-                                    random.nextFloat() * 0.65f,
+                                    random.nextFloat() *
+                                    0.55f,
                             delay =
-                                random.nextFloat() * 0.35f,
-                            shape =
-                                ShapeType.values()
-                                    .filter {
-                                        it != ShapeType.RANDOM
-                                    }
-                                    .random(random),
+                                random.nextFloat() *
+                                    0.30f,
+                            shape = shape,
                             randomSides =
-                                3 + random.nextInt(4)
+                                3 +
+                                    random.nextInt(4)
                         )
                     )
                 }
             }
         }
 
-        private fun drawFrame() {
+        private fun chooseShape(
+            selectedShape: String
+        ): ShapeType {
+
+            return when (
+                selectedShape.lowercase()
+            ) {
+
+                "circle" ->
+                    ShapeType.CIRCLE
+
+                "rectangle" ->
+                    ShapeType.RECTANGLE
+
+                "triangle" ->
+                    ShapeType.TRIANGLE
+
+                "pentagon" ->
+                    ShapeType.PENTAGON
+
+                "hexagon" ->
+                    ShapeType.HEXAGON
+
+                else -> {
+
+                    val shapes =
+                        ShapeType.values()
+                            .filter {
+                                it !=
+                                    ShapeType.RANDOM
+                            }
+
+                    shapes.random(random)
+                }
+            }
+        }
+                private fun drawFrame() {
+
             val holder = surfaceHolder
 
             if (!holder.surface.isValid) {
                 return
             }
 
-            val canvas = try {
-                holder.lockCanvas()
-            } catch (_: Exception) {
-                null
-            } ?: return
+            val canvas =
+                try {
+                    holder.lockCanvas()
+                } catch (_: Exception) {
+                    null
+                } ?: return
 
             try {
-                val now = System.currentTimeMillis()
-                val elapsed = now - animationStart
+
+                val now =
+                    System.currentTimeMillis()
+
+                val elapsed =
+                    now - animationStart
 
                 when (state) {
+
                     AnimationState.ASSEMBLING -> {
+
                         val progress =
-                            (elapsed.toFloat() /
-                                assembleDuration)
-                                .coerceIn(0f, 1f)
+                            (
+                                elapsed.toFloat() /
+                                    assembleDuration
+                            ).coerceIn(
+                                0f,
+                                1f
+                            )
 
                         drawBackground(canvas)
-                        drawAssembling(canvas, progress)
+
+                        drawAssembling(
+                            canvas,
+                            progress
+                        )
 
                         if (progress >= 1f) {
-                            state = AnimationState.STATIC
+
+                            state =
+                                AnimationState.STATIC
+
                             animationStart = now
                         }
                     }
 
                     AnimationState.STATIC -> {
-                        drawBackground(canvas)
-                        drawStatic(canvas)
 
-                        if (elapsed >= staticDuration) {
-                            state = AnimationState.BREAKING
+                        drawBackground(canvas)
+
+                        drawCompleteFlowPhoto(
+                            canvas
+                        )
+
+                        if (
+                            elapsed >=
+                            staticDuration
+                        ) {
+
+                            state =
+                                AnimationState.BREAKING
+
                             animationStart = now
                         }
                     }
 
                     AnimationState.BREAKING -> {
+
                         val progress =
-                            (elapsed.toFloat() /
-                                breakDuration)
-                                .coerceIn(0f, 1f)
+                            (
+                                elapsed.toFloat() /
+                                    breakDuration
+                            ).coerceIn(
+                                0f,
+                                1f
+                            )
 
                         drawBackground(canvas)
-                        drawBreaking(canvas, progress)
+
+                        drawBreaking(
+                            canvas,
+                            progress
+                        )
 
                         if (progress >= 1f) {
+
                             createPieces()
-                            state = AnimationState.ASSEMBLING
+
+                            state =
+                                AnimationState.ASSEMBLING
+
                             animationStart = now
                         }
                     }
                 }
+
             } finally {
+
                 try {
-                    holder.unlockCanvasAndPost(canvas)
+                    holder.unlockCanvasAndPost(
+                        canvas
+                    )
                 } catch (_: Exception) {
                 }
             }
         }
-                private fun drawBackground(canvas: Canvas) {
+
+        private fun drawBackground(
+            canvas: Canvas
+        ) {
+
             backgroundBitmap?.let { bitmap ->
+
                 canvas.drawBitmap(
                     bitmap,
                     null,
@@ -372,18 +643,65 @@ class FlowWallpaperService : WallpaperService() {
             }
         }
 
+        private fun drawCompleteFlowPhoto(
+            canvas: Canvas
+        ) {
+
+            val bitmap =
+                flowBitmap ?: return
+
+            val left =
+                canvasWidth * 0.10f
+
+            val top =
+                canvasHeight * 0.18f
+
+            val right =
+                canvasWidth * 0.90f
+
+            val bottom =
+                canvasHeight * 0.82f
+
+            canvas.drawBitmap(
+                bitmap,
+                Rect(
+                    left.toInt(),
+                    top.toInt(),
+                    right.toInt(),
+                    bottom.toInt()
+                ),
+                RectF(
+                    left,
+                    top,
+                    right,
+                    bottom
+                ),
+                bitmapPaint
+            )
+        }
+
         private fun drawAssembling(
             canvas: Canvas,
             progress: Float
         ) {
+
             for (piece in pieces) {
+
                 val pieceProgress =
-                    ((progress - piece.delay) /
-                        (1f - piece.delay))
-                        .coerceIn(0f, 1f)
+                    (
+                        (progress -
+                            piece.delay) /
+                            (1f -
+                                piece.delay)
+                    ).coerceIn(
+                        0f,
+                        1f
+                    )
 
                 val eased =
-                    smoothStep(pieceProgress)
+                    easeOutCubic(
+                        pieceProgress
+                    )
 
                 drawPiece(
                     canvas,
@@ -394,29 +712,28 @@ class FlowWallpaperService : WallpaperService() {
             }
         }
 
-        private fun drawStatic(canvas: Canvas) {
-            for (piece in pieces) {
-                drawPiece(
-                    canvas,
-                    piece,
-                    1f,
-                    false
-                )
-            }
-        }
-
         private fun drawBreaking(
             canvas: Canvas,
             progress: Float
         ) {
+
             for (piece in pieces) {
+
                 val pieceProgress =
-                    ((progress - piece.delay) /
-                        (1f - piece.delay))
-                        .coerceIn(0f, 1f)
+                    (
+                        (progress -
+                            piece.delay) /
+                            (1f -
+                                piece.delay)
+                    ).coerceIn(
+                        0f,
+                        1f
+                    )
 
                 val eased =
-                    smoothStep(pieceProgress)
+                    easeInCubic(
+                        pieceProgress
+                    )
 
                 drawPiece(
                     canvas,
@@ -433,33 +750,30 @@ class FlowWallpaperService : WallpaperService() {
             progress: Float,
             breaking: Boolean
         ) {
+
             val startX =
-                if (breaking) {
+                if (breaking)
                     piece.targetX
-                } else {
+                else
                     piece.scatterX
-                }
 
             val startY =
-                if (breaking) {
+                if (breaking)
                     piece.targetY
-                } else {
+                else
                     piece.scatterY
-                }
 
             val endX =
-                if (breaking) {
+                if (breaking)
                     piece.scatterX
-                } else {
+                else
                     piece.targetX
-                }
 
             val endY =
-                if (breaking) {
+                if (breaking)
                     piece.scatterY
-                } else {
+                else
                     piece.targetY
-                }
 
             val x =
                 lerp(
@@ -477,12 +791,15 @@ class FlowWallpaperService : WallpaperService() {
 
             val rotation =
                 if (breaking) {
+
                     lerp(
                         0f,
                         piece.breakRotation,
                         progress
                     )
+
                 } else {
+
                     lerp(
                         piece.startRotation,
                         0f,
@@ -492,12 +809,15 @@ class FlowWallpaperService : WallpaperService() {
 
             val scale =
                 if (breaking) {
+
                     lerp(
                         1f,
-                        0.05f,
+                        0.02f,
                         progress
                     )
+
                 } else {
+
                     lerp(
                         piece.startScale,
                         1f,
@@ -507,9 +827,12 @@ class FlowWallpaperService : WallpaperService() {
 
             val alpha =
                 if (breaking) {
-                    ((1f - progress) * 255f)
-                        .toInt()
-                        .coerceIn(0, 255)
+
+                    (
+                        (1f - progress) *
+                            255f
+                    ).toInt()
+
                 } else {
                     255
                 }
@@ -520,47 +843,51 @@ class FlowWallpaperService : WallpaperService() {
                     scale
                 )
 
-            val bitmap =
-                flowBitmap ?: return
-
-            val shader = BitmapShader(
-                bitmap,
-                Shader.TileMode.CLAMP,
-                Shader.TileMode.CLAMP
-            )
-
-            val matrix = Matrix()
-
-            matrix.setTranslate(
-                -piece.sourceX,
-                -piece.sourceY
-            )
-
-            shader.setLocalMatrix(matrix)
-
-            paint.shader = shader
-            paint.alpha = alpha
-
             canvas.save()
 
-            canvas.translate(x, y)
-            canvas.rotate(rotation)
+            canvas.translate(
+                x,
+                y
+            )
 
-            canvas.drawPath(
-                path,
-                paint
+            canvas.rotate(
+                rotation
+            )
+
+            canvas.clipPath(path)
+
+            canvas.drawBitmap(
+                piece.bitmap,
+                null,
+                RectF(
+                    -piece.width *
+                        scale / 2f,
+                    -piece.height *
+                        scale / 2f,
+                    piece.width *
+                        scale / 2f,
+                    piece.height *
+                        scale / 2f
+                ),
+                bitmapPaint.apply {
+                    this.alpha =
+                        alpha.coerceIn(
+                            0,
+                            255
+                        )
+                }
             )
 
             canvas.restore()
 
-            paint.shader = null
-            paint.alpha = 255
+            bitmapPaint.alpha = 255
         }
 
         private fun createShapePath(
             piece: Piece,
             scale: Float
         ): Path {
+
             val width =
                 piece.width * scale
 
@@ -568,8 +895,11 @@ class FlowWallpaperService : WallpaperService() {
                 piece.height * scale
 
             return when (piece.shape) {
+
                 ShapeType.CIRCLE -> {
+
                     Path().apply {
+
                         addOval(
                             -width / 2f,
                             -height / 2f,
@@ -581,7 +911,9 @@ class FlowWallpaperService : WallpaperService() {
                 }
 
                 ShapeType.RECTANGLE -> {
+
                     Path().apply {
+
                         addRect(
                             -width / 2f,
                             -height / 2f,
@@ -593,6 +925,7 @@ class FlowWallpaperService : WallpaperService() {
                 }
 
                 ShapeType.TRIANGLE -> {
+
                     createPolygonPath(
                         3,
                         width / 2f,
@@ -601,6 +934,7 @@ class FlowWallpaperService : WallpaperService() {
                 }
 
                 ShapeType.PENTAGON -> {
+
                     createPolygonPath(
                         5,
                         width / 2f,
@@ -609,6 +943,7 @@ class FlowWallpaperService : WallpaperService() {
                 }
 
                 ShapeType.HEXAGON -> {
+
                     createPolygonPath(
                         6,
                         width / 2f,
@@ -617,6 +952,7 @@ class FlowWallpaperService : WallpaperService() {
                 }
 
                 ShapeType.RANDOM -> {
+
                     createPolygonPath(
                         piece.randomSides,
                         width / 2f,
@@ -631,12 +967,19 @@ class FlowWallpaperService : WallpaperService() {
             radiusX: Float,
             radiusY: Float
         ): Path {
+
             val path = Path()
 
             for (i in 0 until sides) {
+
                 val angle =
                     -Math.PI / 2.0 +
-                        (2.0 * Math.PI * i / sides)
+                        (
+                            2.0 *
+                                Math.PI *
+                                i /
+                                sides
+                        )
 
                 val x =
                     cos(angle).toFloat() *
@@ -658,11 +1001,22 @@ class FlowWallpaperService : WallpaperService() {
             return path
         }
 
-        private fun smoothStep(
+        private fun easeOutCubic(
             value: Float
         ): Float {
-            return value * value *
-                (3f - 2f * value)
+
+            val v =
+                1f - value
+
+            return 1f -
+                v * v * v
+        }
+
+        private fun easeInCubic(
+            value: Float
+        ): Float {
+
+            return value * value * value
         }
 
         private fun lerp(
@@ -670,8 +1024,10 @@ class FlowWallpaperService : WallpaperService() {
             end: Float,
             amount: Float
         ): Float {
+
             return start +
-                (end - start) * amount
+                (end - start) *
+                amount
         }
     }
 
@@ -691,14 +1047,13 @@ class FlowWallpaperService : WallpaperService() {
     }
 
     private data class Piece(
-        val sourceX: Float,
-        val sourceY: Float,
+        val bitmap: Bitmap,
         val targetX: Float,
         val targetY: Float,
-        val scatterX: Float,
-        val scatterY: Float,
         val width: Float,
         val height: Float,
+        val scatterX: Float,
+        val scatterY: Float,
         val startRotation: Float,
         val breakRotation: Float,
         val startScale: Float,
