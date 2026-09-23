@@ -30,9 +30,7 @@ class PreviewActivity : Activity() {
             WindowManager.LayoutParams.FLAG_FULLSCREEN
         )
 
-        setContentView(
-            PreviewView()
-        )
+        setContentView(PreviewView())
     }
 
     private inner class PreviewView : View(this) {
@@ -41,10 +39,7 @@ class PreviewActivity : Activity() {
         private var flowBitmap: Bitmap? = null
 
         private val bitmapPaint =
-            Paint(
-                Paint.ANTI_ALIAS_FLAG or
-                    Paint.FILTER_BITMAP_FLAG
-            )
+            Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
 
         private val random =
             Random(System.currentTimeMillis())
@@ -56,7 +51,7 @@ class PreviewActivity : Activity() {
             System.currentTimeMillis()
 
         private var state =
-            State.ASSEMBLING
+            AnimationState.ASSEMBLING
 
         private val assembleDuration = 6500L
         private val staticDuration = 2500L
@@ -69,10 +64,7 @@ class PreviewActivity : Activity() {
         private fun loadPhotos() {
 
             val preferences =
-                getSharedPreferences(
-                    "LiveFlow",
-                    MODE_PRIVATE
-                )
+                getSharedPreferences("LiveFlow", MODE_PRIVATE)
 
             backgroundBitmap =
                 loadBitmap(
@@ -92,8 +84,10 @@ class PreviewActivity : Activity() {
 
             post {
                 createPieces()
+
                 startTime =
                     System.currentTimeMillis()
+
                 invalidate()
             }
         }
@@ -114,15 +108,14 @@ class PreviewActivity : Activity() {
                     )
 
                 val bitmap =
-                    BitmapFactory.decodeStream(
-                        input
-                    )
+                    BitmapFactory.decodeStream(input)
 
                 input?.close()
 
                 bitmap
 
             } catch (_: Exception) {
+
                 null
             }
         }
@@ -134,10 +127,7 @@ class PreviewActivity : Activity() {
             val bitmap =
                 flowBitmap ?: return
 
-            if (
-                width <= 0 ||
-                height <= 0
-            ) {
+            if (width <= 0 || height <= 0) {
                 return
             }
 
@@ -237,26 +227,21 @@ class PreviewActivity : Activity() {
                             bitmap,
                             sourceLeft,
                             sourceTop,
-                            sourceRight -
-                                sourceLeft,
-                            sourceBottom -
-                                sourceTop
+                            sourceRight - sourceLeft,
+                            sourceBottom - sourceTop
                         )
 
                     pieces.add(
                         Piece(
-                            bitmap =
-                                pieceBitmap,
+                            bitmap = pieceBitmap,
                             targetX =
                                 targetLeft +
                                     pieceWidth / 2f,
                             targetY =
                                 targetTop +
                                     pieceHeight / 2f,
-                            width =
-                                pieceWidth,
-                            height =
-                                pieceHeight,
+                            width = pieceWidth,
+                            height = pieceHeight,
                             scatterX =
                                 random.nextFloat() *
                                     width,
@@ -293,41 +278,40 @@ class PreviewActivity : Activity() {
 
         private fun chooseShape(
             selectedShape: String
-        ): ShapeType {
+        ): PieceShape {
 
             return when (
                 selectedShape.lowercase()
             ) {
 
                 "circle" ->
-                    ShapeType.CIRCLE
+                    PieceShape.CIRCLE
 
                 "rectangle" ->
-                    ShapeType.RECTANGLE
+                    PieceShape.RECTANGLE
 
                 "triangle" ->
-                    ShapeType.TRIANGLE
+                    PieceShape.TRIANGLE
 
                 "pentagon" ->
-                    ShapeType.PENTAGON
+                    PieceShape.PENTAGON
 
                 "hexagon" ->
-                    ShapeType.HEXAGON
+                    PieceShape.HEXAGON
 
-                else -> {
-
-                    ShapeType.values()
+                else ->
+                    PieceShape.values()
                         .filter {
-                            it !=
-                                ShapeType.RANDOM
+                            it != PieceShape.RANDOM
                         }
                         .random(random)
-                }
             }
         }
-                override fun onDraw(
+
+        override fun onDraw(
             canvas: Canvas
         ) {
+
             super.onDraw(canvas)
 
             drawBackground(canvas)
@@ -338,7 +322,7 @@ class PreviewActivity : Activity() {
 
             when (state) {
 
-                State.ASSEMBLING -> {
+                AnimationState.ASSEMBLING -> {
 
                     val progress =
                         (
@@ -357,33 +341,28 @@ class PreviewActivity : Activity() {
                     if (progress >= 1f) {
 
                         state =
-                            State.STATIC
+                            AnimationState.STATIC
 
                         startTime =
                             System.currentTimeMillis()
                     }
                 }
 
-                State.STATIC -> {
+                AnimationState.STATIC -> {
 
-                    drawCompletePhoto(
-                        canvas
-                    )
+                    drawCompletePhoto(canvas)
 
-                    if (
-                        elapsed >=
-                            staticDuration
-                    ) {
+                    if (elapsed >= staticDuration) {
 
                         state =
-                            State.BREAKING
+                            AnimationState.BREAKING
 
                         startTime =
                             System.currentTimeMillis()
                     }
                 }
 
-                State.BREAKING -> {
+                AnimationState.BREAKING -> {
 
                     val progress =
                         (
@@ -404,7 +383,7 @@ class PreviewActivity : Activity() {
                         createPieces()
 
                         state =
-                            State.ASSEMBLING
+                            AnimationState.ASSEMBLING
 
                         startTime =
                             System.currentTimeMillis()
@@ -624,6 +603,7 @@ class PreviewActivity : Activity() {
                     ).toInt()
 
                 } else {
+
                     255
                 }
 
@@ -674,9 +654,9 @@ class PreviewActivity : Activity() {
                 bitmapPaint
             )
 
-            canvas.restore()
-
             bitmapPaint.alpha = 255
+
+            canvas.restore()
         }
 
         private fun createShapePath(
@@ -684,68 +664,68 @@ class PreviewActivity : Activity() {
             scale: Float
         ): Path {
 
-            val width =
+            val pieceWidth =
                 piece.width * scale
 
-            val height =
+            val pieceHeight =
                 piece.height * scale
 
             return when (piece.shape) {
 
-                ShapeType.CIRCLE -> {
+                PieceShape.CIRCLE -> {
 
                     Path().apply {
 
                         addOval(
-                            -width / 2f,
-                            -height / 2f,
-                            width / 2f,
-                            height / 2f,
+                            -pieceWidth / 2f,
+                            -pieceHeight / 2f,
+                            pieceWidth / 2f,
+                            pieceHeight / 2f,
                             Path.Direction.CW
                         )
                     }
                 }
 
-                ShapeType.RECTANGLE -> {
+                PieceShape.RECTANGLE -> {
 
                     Path().apply {
 
                         addRect(
-                            -width / 2f,
-                            -height / 2f,
-                            width / 2f,
-                            height / 2f,
+                            -pieceWidth / 2f,
+                            -pieceHeight / 2f,
+                            pieceWidth / 2f,
+                            pieceHeight / 2f,
                             Path.Direction.CW
                         )
                     }
                 }
 
-                ShapeType.TRIANGLE ->
+                PieceShape.TRIANGLE ->
                     polygon(
                         3,
-                        width / 2f,
-                        height / 2f
+                        pieceWidth / 2f,
+                        pieceHeight / 2f
                     )
 
-                ShapeType.PENTAGON ->
+                PieceShape.PENTAGON ->
                     polygon(
                         5,
-                        width / 2f,
-                        height / 2f
+                        pieceWidth / 2f,
+                        pieceHeight / 2f
                     )
 
-                ShapeType.HEXAGON ->
+                PieceShape.HEXAGON ->
                     polygon(
                         6,
-                        width / 2f,
-                        height / 2f
+                        pieceWidth / 2f,
+                        pieceHeight / 2f
                     )
 
-                ShapeType.RANDOM ->
+                PieceShape.RANDOM ->
                     polygon(
                         piece.randomSides,
-                        width / 2f,
-                        height / 2f
+                        pieceWidth / 2f,
+                        pieceHeight / 2f
                     )
             }
         }
@@ -756,7 +736,8 @@ class PreviewActivity : Activity() {
             radiusY: Float
         ): Path {
 
-            val path = Path()
+            val path =
+                Path()
 
             for (i in 0 until sides) {
 
@@ -775,10 +756,20 @@ class PreviewActivity : Activity() {
                     sin(angle).toFloat() *
                         radiusY
 
-                if (i == 0)
-                    path.moveTo(x, y)
-                else
-                    path.lineTo(x, y)
+                if (i == 0) {
+
+                    path.moveTo(
+                        x,
+                        y
+                    )
+
+                } else {
+
+                    path.lineTo(
+                        x,
+                        y
+                    )
+                }
             }
 
             path.close()
@@ -816,36 +807,41 @@ class PreviewActivity : Activity() {
                 (end - start) *
                 amount
         }
-
-        private enum class State {
-            ASSEMBLING,
-            STATIC,
-            BREAKING
-        }
-
-        private enum class ShapeType {
-            CIRCLE,
-            RECTANGLE,
-            TRIANGLE,
-            PENTAGON,
-            HEXAGON,
-            RANDOM
-        }
-
-        private data class Piece(
-            val bitmap: Bitmap,
-            val targetX: Float,
-            val targetY: Float,
-            val width: Float,
-            val height: Float,
-            val scatterX: Float,
-            val scatterY: Float,
-            val startRotation: Float,
-            val breakRotation: Float,
-            val startScale: Float,
-            val delay: Float,
-            val shape: ShapeType,
-            val randomSides: Int
-        )
     }
 }
+
+/*
+ * These types are deliberately outside
+  * PreviewView so Kotlin accepts them.
+ */
+
+private enum class AnimationState {
+    ASSEMBLING,
+    STATIC,
+    BREAKING
+}
+
+private enum class PieceShape {
+    CIRCLE,
+    RECTANGLE,
+    TRIANGLE,
+    PENTAGON,
+    HEXAGON,
+    RANDOM
+}
+
+private data class Piece(
+    val bitmap: Bitmap,
+    val targetX: Float,
+    val targetY: Float,
+    val width: Float,
+    val height: Float,
+    val scatterX: Float,
+    val scatterY: Float,
+    val startRotation: Float,
+    val breakRotation: Float,
+    val startScale: Float,
+    val delay: Float,
+    val shape: PieceShape,
+    val randomSides: Int
+)
